@@ -36,7 +36,6 @@ function AuthPage() {
   async function afterAuth() {
     try {
       // Claim admin role if no admin exists yet, otherwise assign 'agent'
-      // @ts-expect-error rpc name not yet in generated types
       await supabase.rpc("claim_admin_if_first");
     } catch (e) {
       console.warn("claim_admin_if_first failed:", e);
