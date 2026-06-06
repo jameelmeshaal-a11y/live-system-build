@@ -4,11 +4,13 @@ import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -29,8 +31,17 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
+      if (data.session) navigate({ to: "/dashboard", replace: true });
     });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        (async () => {
+          try { await supabase.rpc("claim_admin_if_first"); } catch {}
+          navigate({ to: "/dashboard", replace: true });
+        })();
+      }
+    });
+    return () => sub.subscription.unsubscribe();
   }, [navigate]);
 
   async function afterAuth() {
@@ -67,6 +78,25 @@ function AuthPage() {
     await afterAuth();
   }
 
+  async function oauth(provider: "google" | "apple") {
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error(result.error.message ?? "فشل تسجيل الدخول");
+        setLoading(false);
+        return;
+      }
+      if (result.redirected) return;
+      await afterAuth();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-background via-[#1a0f2e] to-background">
       <div className="w-full max-w-md">
@@ -85,7 +115,20 @@ function AuthPage() {
             <CardTitle>مرحباً</CardTitle>
             <CardDescription>سجّل دخولك أو أنشئ حساباً جديداً</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" disabled={loading} onClick={() => oauth("google")}>
+                Google
+              </Button>
+              <Button type="button" variant="outline" disabled={loading} onClick={() => oauth("apple")}>
+                Apple
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Separator className="flex-1" />
+              <span className="text-xs text-muted-foreground">أو</span>
+              <Separator className="flex-1" />
+            </div>
             <Tabs defaultValue="signin">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">تسجيل الدخول</TabsTrigger>
