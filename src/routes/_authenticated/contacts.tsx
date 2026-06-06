@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
-import { Upload, Search } from "lucide-react";
+import { Upload, Search, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,7 +57,7 @@ function ContactsPage() {
         source: r.source ? String(r.source) : "excel",
       }));
       const res = await importFn({ data: { rows: mapped } });
-      toast.success(`تم استيراد ${res.imported}، وتجاهل ${res.skipped}`);
+      toast.success(`تم رفع الملف بنجاح ✅ — أُضيف ${res.imported} جهة اتصال${res.skipped ? `، وتم تجاهل ${res.skipped}` : ""}`);
       qc.invalidateQueries({ queryKey: ["contacts"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "فشل الاستيراد");
@@ -67,18 +67,34 @@ function ContactsPage() {
     }
   }
 
+  function downloadTemplate() {
+    const headers = [["phone", "name", "store_name", "city", "instagram", "notes"]];
+    const sample = [["+966500000000", "اسم التاجر", "اسم المتجر", "الرياض", "@store", "ملاحظات"]];
+    const ws = XLSX.utils.aoa_to_sheet([...headers, ...sample]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "contacts");
+    XLSX.writeFile(wb, "contacts_template.xlsx");
+    toast.success("تم تنزيل القالب");
+  }
+
   return (
     <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">جهات الاتصال</h1>
           <p className="text-muted-foreground mt-1">إجمالي: {contacts?.length ?? 0}</p>
         </div>
-        <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-          <Upload className="w-4 h-4 ml-2" />
-          {uploading ? "جاري..." : "رفع Excel"}
-        </Button>
-        <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={handleFile} />
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={downloadTemplate}>
+            <Download className="w-4 h-4 ml-2" />
+            تنزيل القالب
+          </Button>
+          <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            <Upload className="w-4 h-4 ml-2" />
+            {uploading ? "جاري الرفع..." : "رفع Excel"}
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={handleFile} />
+        </div>
       </div>
 
       <Card>

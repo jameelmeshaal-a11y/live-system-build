@@ -10,6 +10,7 @@ import {
   Settings as SettingsIcon,
   LogOut,
   Sparkles,
+  BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const NAV = [
   { to: "/templates", label: "القوالب", icon: FileText },
   { to: "/analytics", label: "التحليلات", icon: BarChart3 },
   { to: "/settings", label: "الإعدادات", icon: SettingsIcon },
+  { to: "/guide", label: "دليل الاستخدام", icon: BookOpen },
 ] as const;
 
 function AuthenticatedLayout() {
