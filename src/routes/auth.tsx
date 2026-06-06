@@ -35,9 +35,10 @@ function AuthPage() {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        supabase.rpc("claim_admin_if_first").finally(() => {
+        (async () => {
+          try { await supabase.rpc("claim_admin_if_first"); } catch {}
           navigate({ to: "/dashboard", replace: true });
-        });
+        })();
       }
     });
     return () => sub.subscription.unsubscribe();
