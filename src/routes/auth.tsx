@@ -87,7 +87,20 @@ function AuthPage() {
             <CardTitle>مرحباً</CardTitle>
             <CardDescription>سجّل دخولك أو أنشئ حساباً جديداً</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" disabled={loading} onClick={() => oauth("google")}>
+                Google
+              </Button>
+              <Button type="button" variant="outline" disabled={loading} onClick={() => oauth("apple")}>
+                Apple
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Separator className="flex-1" />
+              <span className="text-xs text-muted-foreground">أو</span>
+              <Separator className="flex-1" />
+            </div>
             <Tabs defaultValue="signin">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">تسجيل الدخول</TabsTrigger>
