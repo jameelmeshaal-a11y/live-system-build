@@ -69,6 +69,25 @@ function AuthPage() {
     await afterAuth();
   }
 
+  async function oauth(provider: "google" | "apple") {
+    setLoading(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth(provider, {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error(result.error.message ?? "فشل تسجيل الدخول");
+        setLoading(false);
+        return;
+      }
+      if (result.redirected) return;
+      await afterAuth();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-background via-[#1a0f2e] to-background">
       <div className="w-full max-w-md">
