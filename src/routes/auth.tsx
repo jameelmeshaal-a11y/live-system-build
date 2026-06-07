@@ -47,7 +47,6 @@ function AuthPage() {
         go();
       }
     });
-    });
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
