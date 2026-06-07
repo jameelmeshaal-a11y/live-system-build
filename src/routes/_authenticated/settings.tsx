@@ -42,9 +42,17 @@ function SettingsPage() {
   useEffect(() => { if (typeof prompt.data === "string") setPromptText(prompt.data); }, [prompt.data]);
 
   async function save(key: string, value: unknown) {
-    const { error } = await supabase.from("settings").upsert({ key, value: value as never, updated_at: new Date().toISOString() });
-    if (error) return toast.error(error.message);
-    toast.success("تم الحفظ");
+    const { error } = await supabase
+      .from("settings")
+      .upsert({ key, value: value as never, updated_at: new Date().toISOString() }, { onConflict: "key" });
+    if (error) {
+      console.error("settings save failed", key, error);
+      const msg = error.message?.includes("row-level security")
+        ? "ليس لديك صلاحية حفظ الإعدادات (يتطلب دور مدير)"
+        : error.message || "تعذّر الحفظ";
+      return toast.error(msg);
+    }
+    toast.success("تم الحفظ بنجاح ✅", { description: `تم تحديث ${key}` });
     qc.invalidateQueries({ queryKey: ["settings", key] });
   }
 
