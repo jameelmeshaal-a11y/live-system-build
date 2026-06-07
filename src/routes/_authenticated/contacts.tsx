@@ -47,19 +47,33 @@ function ContactsPage() {
       const wb = XLSX.read(buf, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws) as Array<Record<string, unknown>>;
-      const mapped = rows.map((r) => ({
-        phone: String(r.phone ?? r.Phone ?? r["رقم"] ?? r["الهاتف"] ?? ""),
-        name: r.name ? String(r.name) : undefined,
-        store_name: r.store_name ? String(r.store_name) : undefined,
-        city: r.city ? String(r.city) : undefined,
-        instagram: r.instagram ? String(r.instagram) : undefined,
-        notes: r.notes ? String(r.notes) : undefined,
-        source: r.source ? String(r.source) : "excel",
-      }));
-      const res = await importFn({ data: { rows: mapped } });
-      toast.success(`تم رفع الملف بنجاح ✅ — أُضيف ${res.imported} جهة اتصال${res.skipped ? `، وتم تجاهل ${res.skipped}` : ""}`);
+      const mapped = rows
+        .map((r) => ({
+          phone: String(r.phone ?? r.Phone ?? r["رقم"] ?? r["الهاتف"] ?? "").trim(),
+          name: r.name ? String(r.name) : undefined,
+          store_name: r.store_name ? String(r.store_name) : undefined,
+          city: r.city ? String(r.city) : undefined,
+          instagram: r.instagram ? String(r.instagram) : undefined,
+          notes: r.notes ? String(r.notes) : undefined,
+          source: r.source ? String(r.source) : "excel",
+        }));
+      const invalid = mapped.filter((r) => !r.phone).length;
+      const valid = mapped.filter((r) => r.phone);
+      if (!valid.length) {
+        toast.error("الملف لا يحتوي على أرقام صالحة في عمود phone");
+        return;
+      }
+      const res = await importFn({ data: { rows: valid } });
+      toast.success(`تم رفع الملف بنجاح ✅`, {
+        description: [
+          `أُضيف ${res.imported} جهة اتصال جديدة`,
+          res.skipped ? `تم تجاهل ${res.skipped} (مكرر)` : null,
+          invalid ? `${invalid} صف بدون رقم تم تجاهله` : null,
+        ].filter(Boolean).join(" · "),
+      });
       qc.invalidateQueries({ queryKey: ["contacts"] });
     } catch (err) {
+      console.error(err);
       toast.error(err instanceof Error ? err.message : "فشل الاستيراد");
     } finally {
       setUploading(false);
