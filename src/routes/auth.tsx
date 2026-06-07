@@ -89,7 +89,7 @@ function AuthPage() {
         return;
       }
       if (result.redirected) return;
-      await afterAuth();
+      // onAuthStateChange will navigate
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
       setLoading(false);
