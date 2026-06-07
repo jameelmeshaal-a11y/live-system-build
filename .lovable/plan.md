@@ -1,88 +1,47 @@
-# إكمال النظام + معالجة الملاحظات
+# خطة الإصلاحات
 
-## 1) إصلاح "Email not confirmed" (سبب عدم الانتقال للمنصة)
+## 1) إصلاح تكرار شاشة تسجيل الدخول (الوميض اللانهائي)
 
-السبب: Supabase Auth يطلب تأكيد البريد افتراضياً. الحل:
-- تفعيل **auto_confirm_email = true** عبر أداة configure_auth.
-- نتيجة: أي تسجيل جديد يدخل مباشرة دون رابط تأكيد.
+**السبب الجذري:**
+- `src/routes/_authenticated/route.tsx` يستخدم `supabase.auth.getUser()` داخل `beforeLoad` (يقوم بطلب شبكة `/user`). عند أي فشل شبكة مؤقت يُعاد التوجيه إلى `/auth`، ثم `onAuthStateChange` في صفحة `/auth` يعيد التوجيه إلى `/dashboard` فوراً، فيتكرر اللوب (نرى في الكونسول عشرات أخطاء `NetworkError when attempting to fetch resource`).
+- `useEffect` في `/auth` يضع `navigate` في قائمة التبعيات، ويستدعي `navigate` من داخل `getSession` و`onAuthStateChange` معاً → استدعاءان متتاليان.
 
-## 2) إنشاء حسابات جاهزة
+**الإصلاح:**
+- في `_authenticated/route.tsx`: استبدال `supabase.auth.getUser()` بـ `supabase.auth.getSession()` (قراءة محلية من التخزين، بدون طلب شبكة)، وإن لم توجد جلسة → redirect إلى `/auth`. لا يزال آمنًا لأن RLS تتحقق من الـ JWT في الطلبات اللاحقة.
+- في `src/routes/auth.tsx`: حذف `navigate` من deps الـ `useEffect`، استخدام `ref` لمنع تكرار التوجيه، الاكتفاء بـ listener واحد (`onAuthStateChange` مع `INITIAL_SESSION`/`SIGNED_IN`)، وإزالة الاستدعاء المزدوج لـ `claim_admin_if_first` و`afterAuth`.
 
-- `admin@salasah.sa` / `Ss@2030` → دور **admin**
-- `ceo@salasah.sa` / `Ss@2030` → دور **agent**
+## 2) إصلاح خطأ حفظ "الحد اليومي" و"شخصية الذكاء الاصطناعي"
 
-التنفيذ عبر `supabaseAdmin.auth.admin.createUser({ email_confirm: true })` ثم إدراج صف في `user_roles`. سأنفذ ذلك بسكربت يُشغّل مرة واحدة من خلال server function أو مباشرة عبر SQL + إدخال يدوي في dashboard إن لزم. الطريقة المعتمدة: استدعاء داخلي عبر `psql`/insert + سكربت Node صغير لإنشاء المستخدم في auth.
+**السبب الجذري:**
+- استدعاء `upsert` بدون `onConflict: "key"`، فيُعامَل كـ INSERT ويُصطدم بقيد PK على `key` (موجود مسبقًا) → خطأ.
+- `warm_up` يحفظ حقل `week` غير موجود في الـ defaults الافتراضية، لا يضر ولكن سنبسطه.
 
-## 3) إضافة تسجيل الدخول بـ Google و Apple
+**الإصلاح في `src/routes/_authenticated/settings.tsx`:**
+- تعديل `save()` لاستخدام `.upsert(..., { onConflict: "key" })`.
+- إظهار رسالة الخطأ الفعلية من Supabase بشكل واضح (مع `console.error` للتشخيص).
+- إضافة تحقق: إذا لم يكن المستخدم admin → عرض تنبيه واضح بدل خطأ RLS غامض (CEO حاليًا دور `agent` → سنبقي الـ RLS كما هي لأن الإعدادات يجب أن تكون للأدمن فقط، فقط نوضح الرسالة).
 
-- استدعاء `supabase--configure_social_auth` بـ `["google","apple"]` (مُدار من Lovable Cloud — لا حاجة لإعداد credentials).
-- إنشاء `src/integrations/lovable/index.ts` تلقائياً عبر الأداة.
-- تعديل `src/routes/auth.tsx`:
-  - زرّان: "متابعة عبر Google" و"متابعة عبر Apple".
-  - يستخدمان `lovable.auth.signInWithOAuth("google"|"apple", { redirect_uri: window.location.origin + "/auth/callback" })`.
-- صفحة `/auth/callback` تستدعي `claim_admin_if_first` ثم تنتقل إلى `/dashboard`.
+## 3) تحسين رسائل تأكيد الرفع
 
-## 4) إصلاح "تم الدخول ولا ينتقل"
+- في `contacts.tsx`: الرسالة موجودة بالفعل. سنضيف:
+  - عند فشل صفوف معينة (phone فارغ): إظهار العدد المُتجاهل بسبب رقم غير صالح.
+  - تحويل toast إلى `toast.success(...)` مع وصف ثانوي (description) فيه التفاصيل.
+  - بعد الرفع: تحديث عداد "الإجمالي" فورًا.
 
-بعد إصلاح auto-confirm، `signIn` سينجح. أيضاً سأتأكد أن `afterAuth` تنتظر `getSession` قبل التنقل لتفادي سباق `_authenticated` gate.
+## 4) إضافة أمثلة حملات ناجحة
 
-## 5) الخطوة 12 — Checklist اختبار End-to-End
+في `campaigns.tsx`، داخل نافذة "حملة جديدة":
+- إضافة كرت "أمثلة جاهزة" يحتوي 3 أمثلة قابلة للنقر تملأ اسم الحملة:
+  1. **"حملة الرياض — يناير 2026"** — استهداف تجار العبايات في الرياض.
+  2. **"إعادة تفعيل العملاء الصامتين"** — لمن لم يرد منذ 30 يوم.
+  3. **"إطلاق مجموعة رمضان"** — حملة موسمية قبل رمضان بأسبوعين.
+- أسفل كل مثال شرح قصير (سطر واحد) للغرض ومتوسط معدل النجاح المتوقع.
+- إضافة شرح "ما هي الحملة؟" مختصر داخل النافذة + رابط لدليل الاستخدام `/guide`.
 
-```
-[ ] 1. الدخول كـ admin
-[ ] 2. /contacts → استيراد ملف xlsx (عمودان: name, phone)
-[ ] 3. /campaigns → إنشاء حملة + ربط جهات الاتصال
-[ ] 4. الضغط "تشغيل" → يُدخل صف في message_queue
-[ ] 5. /api/public/cron/dispatch (يدوياً عبر curl) → يجب أن يرسل (سيفشل بدون توكنات WA — متوقع)
-[ ] 6. /settings → إدخال توكنات WA حقيقية لاحقاً
-[ ] 7. محاكاة webhook: POST إلى /api/webhook/whatsapp بحمولة Meta → يجب إنشاء صف في conversations والرد عبر AI
-[ ] 8. /conversations → ظهور المحادثة في الزمن الحقيقي
-[ ] 9. /analytics → ظهور الإحصائيات
-```
+## الملفات المعدّلة
 
-سأضيف هذه القائمة كـ `docs/E2E_CHECKLIST.md` داخل المشروع.
-
-## 6) الخطوة 13 — pg_cron
-
-أ. **التحقق من تفعيل pg_cron** عبر `supabase--read_query`:
-```sql
-SELECT extname FROM pg_extension WHERE extname IN ('pg_cron','pg_net');
-```
-إن لم تكن مفعّلة، سأفعّلها في migration:
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pg_net;
-```
-
-ب. **جدولة الإرسال** (سأضيفها في `docs/CRON_SETUP.md` + migration جاهز):
-```sql
-SELECT cron.schedule(
-  'dispatch-messages',
-  '* * * * *',
-  $$SELECT net.http_post(
-    url:='https://nor-ai.lovable.app/api/public/cron/dispatch',
-    headers:='{"Content-Type":"application/json"}'::jsonb,
-    body:='{}'::jsonb
-  )$$
-);
-```
-
-## 7) التجربة الفعلية بعد التنفيذ
-
-- فتح المعاينة، تسجيل دخول `admin@salasah.sa` → التحقق من الانتقال إلى /dashboard.
-- تسجيل دخول `ceo@salasah.sa` → التحقق.
-- زر Google → التحقق أن popup يفتح بنجاح (لن أكمل تسجيل دخول حقيقي لأنه يتطلب حساب Google من المستخدم، لكن سأتحقق أن flow يبدأ بدون أخطاء).
-- كتابة "تم" في نهاية الرد بعد التحقق.
-
----
-
-## الملفات المتأثرة
-
-- `supabase/migrations/*` — pg_cron + pg_net + extensions
-- `src/integrations/lovable/index.ts` — يُنشأ تلقائياً
-- `src/routes/auth.tsx` — أزرار Google/Apple + إصلاح afterAuth
-- `src/routes/auth.callback.tsx` — جديد
-- `docs/E2E_CHECKLIST.md` — جديد
-- `docs/CRON_SETUP.md` — جديد
-- إعدادات Auth: auto_confirm_email = true
-- إنشاء مستخدمَين عبر supabaseAdmin
+- `src/routes/_authenticated/route.tsx` — استبدال getUser بـ getSession في beforeLoad
+- `src/routes/auth.tsx` — تنظيف useEffect ومنع التوجيه المزدوج
+- `src/routes/_authenticated/settings.tsx` — upsert بـ onConflict + رسائل خطأ واضحة
+- `src/routes/_authenticated/contacts.tsx` — تحسين توست الرفع
+- `src/routes/_authenticated/campaigns.tsx` — أمثلة جاهزة + شرح
