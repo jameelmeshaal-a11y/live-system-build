@@ -29,31 +29,30 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const navigatedRef = useState({ done: false })[0];
 
   useEffect(() => {
+    let mounted = true;
+    function go() {
+      if (navigatedRef.done) return;
+      navigatedRef.done = true;
+      navigate({ to: "/dashboard", replace: true });
+    }
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
+      if (mounted && data.session) go();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        (async () => {
-          try { await supabase.rpc("claim_admin_if_first"); } catch {}
-          navigate({ to: "/dashboard", replace: true });
-        })();
+        supabase.rpc("claim_admin_if_first").catch(() => {});
+        go();
       }
     });
-    return () => sub.subscription.unsubscribe();
-  }, [navigate]);
-
-  async function afterAuth() {
-    try {
-      // Claim admin role if no admin exists yet, otherwise assign 'agent'
-      await supabase.rpc("claim_admin_if_first");
-    } catch (e) {
-      console.warn("claim_admin_if_first failed:", e);
-    }
-    navigate({ to: "/dashboard" });
-  }
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
@@ -62,7 +61,7 @@ function AuthPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("مرحباً بعودتك");
-    await afterAuth();
+    // onAuthStateChange handles navigation
   }
 
   async function signUp(e: React.FormEvent) {
@@ -76,7 +75,6 @@ function AuthPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("تم إنشاء الحساب");
-    await afterAuth();
   }
 
   async function oauth(provider: "google" | "apple") {
