@@ -90,18 +90,42 @@ function CampaignsPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>إنشاء حملة</DialogTitle>
+              <DialogTitle>إنشاء حملة جديدة</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground leading-relaxed">
+                <b className="text-foreground">ما هي الحملة؟</b> مجموعة من الرسائل الأولى تُرسَل تلقائياً عبر واتساب لقائمة من جهات الاتصال خلال فترة محددة، يتولى نور AI الردود ويتابع المهتمين.
+              </div>
+
               <div>
                 <Label>اسم الحملة</Label>
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="حملة الرياض - يناير" />
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">أمثلة جاهزة (انقر لتعبئة الاسم):</Label>
+                {[
+                  { n: "حملة الرياض — يناير 2026", d: "استهداف تجار العبايات في الرياض · معدل رد متوقع 18-25%" },
+                  { n: "إعادة تفعيل العملاء الصامتين", d: "تواصل مع من لم يرد منذ 30 يوم · معدل تحويل 8-12%" },
+                  { n: "إطلاق مجموعة رمضان", d: "قبل رمضان بأسبوعين · أعلى معدل تفاعل في السنة 30%+" },
+                ].map((ex) => (
+                  <button
+                    key={ex.n}
+                    type="button"
+                    onClick={() => setName(ex.n)}
+                    className="w-full text-right p-2 rounded-md border border-border hover:bg-accent transition-colors text-sm"
+                  >
+                    <div className="font-medium">{ex.n}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{ex.d}</div>
+                  </button>
+                ))}
+              </div>
+
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={linkAll} onChange={(e) => setLinkAll(e.target.checked)} />
                 إضافة جميع جهات الاتصال (غير المحظورة)
               </label>
-              <Button onClick={createCampaign} disabled={!name} className="w-full">إنشاء</Button>
+              <Button onClick={createCampaign} disabled={!name} className="w-full">إنشاء الحملة</Button>
             </div>
           </DialogContent>
         </Dialog>
