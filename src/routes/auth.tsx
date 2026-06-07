@@ -43,9 +43,10 @@ function AuthPage() {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" && session) {
-        supabase.rpc("claim_admin_if_first").catch(() => {});
+        supabase.rpc("claim_admin_if_first").then(() => {}, () => {});
         go();
       }
+    });
     });
     return () => {
       mounted = false;
