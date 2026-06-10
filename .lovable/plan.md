@@ -1,47 +1,61 @@
-# خطة الإصلاحات
+## الهدف
+تمكين إرسال رسائل واتساب تجريبية مجانية (نص + صور + فيديو) قبل الاعتماد الرسمي من Meta، مع دعم 3 مزودين قابلين للتبديل من شاشة الإعدادات.
 
-## 1) إصلاح تكرار شاشة تسجيل الدخول (الوميض اللانهائي)
+## المزودون المدعومون
 
-**السبب الجذري:**
-- `src/routes/_authenticated/route.tsx` يستخدم `supabase.auth.getUser()` داخل `beforeLoad` (يقوم بطلب شبكة `/user`). عند أي فشل شبكة مؤقت يُعاد التوجيه إلى `/auth`، ثم `onAuthStateChange` في صفحة `/auth` يعيد التوجيه إلى `/dashboard` فوراً، فيتكرر اللوب (نرى في الكونسول عشرات أخطاء `NetworkError when attempting to fetch resource`).
-- `useEffect` في `/auth` يضع `navigate` في قائمة التبعيات، ويستدعي `navigate` من داخل `getSession` و`onAuthStateChange` معاً → استدعاءان متتاليان.
+| المزود | مجاني؟ | API حقيقي؟ | الوسائط | ملاحظات |
+|---|---|---|---|---|
+| **Meta Cloud API – Test Number** | نعم (5 مستلمين) | نعم رسمي | نص/صور/فيديو/PDF | الأنسب والأرسخ |
+| **Unifonic Sandbox (سعودي)** | نعم (رصيد تجريبي) | نعم REST | نص + قوالب | مزود سعودي معتمد |
+| **WAWCD (إضافة بديلة)** | نعم محدود | امتداد كروم – لا API عام | يدوي عبر المتصفح | يُضاف كزر "نسخ النص + فتح واتساب ويب" فقط، لأنه ليس API |
 
-**الإصلاح:**
-- في `_authenticated/route.tsx`: استبدال `supabase.auth.getUser()` بـ `supabase.auth.getSession()` (قراءة محلية من التخزين، بدون طلب شبكة)، وإن لم توجد جلسة → redirect إلى `/auth`. لا يزال آمنًا لأن RLS تتحقق من الـ JWT في الطلبات اللاحقة.
-- في `src/routes/auth.tsx`: حذف `navigate` من deps الـ `useEffect`، استخدام `ref` لمنع تكرار التوجيه، الاكتفاء بـ listener واحد (`onAuthStateChange` مع `INITIAL_SESSION`/`SIGNED_IN`)، وإزالة الاستدعاء المزدوج لـ `claim_admin_if_first` و`afterAuth`.
+> ملاحظة: WAWCD ليس له endpoint عام. سنضيفه كـ "وضع يدوي" (Click-to-Chat) — يفتح `https://wa.me/<phone>?text=<message>` ويمكن استخدامه مع امتداد WAWCD في متصفح المستخدم. هذا أقصى تكامل ممكن تقنياً معه.
 
-## 2) إصلاح خطأ حفظ "الحد اليومي" و"شخصية الذكاء الاصطناعي"
+## الخطوات
 
-**السبب الجذري:**
-- استدعاء `upsert` بدون `onConflict: "key"`، فيُعامَل كـ INSERT ويُصطدم بقيد PK على `key` (موجود مسبقًا) → خطأ.
-- `warm_up` يحفظ حقل `week` غير موجود في الـ defaults الافتراضية، لا يضر ولكن سنبسطه.
+### 1) امتداد طبقة الإرسال (`src/lib/whatsapp.server.ts`)
+- إضافة `provider` field في `whatsapp_config` (قيم: `meta` | `unifonic` | `manual`).
+- إضافة `sendWhatsAppMedia(phone, type, mediaUrl, caption)` يدعم `image|video|document`.
+- موجّه `dispatch(provider, ...)` يختار المزود بناءً على الإعدادات.
+- `sendViaUnifonic()` — استدعاء `https://el.cloud.unifonic.com/rest/Messages/messages` بـ `AppSid`.
 
-**الإصلاح في `src/routes/_authenticated/settings.tsx`:**
-- تعديل `save()` لاستخدام `.upsert(..., { onConflict: "key" })`.
-- إظهار رسالة الخطأ الفعلية من Supabase بشكل واضح (مع `console.error` للتشخيص).
-- إضافة تحقق: إذا لم يكن المستخدم admin → عرض تنبيه واضح بدل خطأ RLS غامض (CEO حاليًا دور `agent` → سنبقي الـ RLS كما هي لأن الإعدادات يجب أن تكون للأدمن فقط، فقط نوضح الرسالة).
+### 2) شاشة الإعدادات (`settings.tsx`)
+- محدّد مزود (Radio): Meta / Unifonic / Manual (WAWCD).
+- حقول ديناميكية لكل مزود (Meta: phone_number_id+token, Unifonic: AppSid+SenderID).
 
-## 3) تحسين رسائل تأكيد الرفع
+### 3) صفحة اختبار جديدة `/test-send`
+- حقل رقم هاتف + اختيار نوع (نص/صورة/فيديو/مستند) + رفع ملف أو URL + نص.
+- زر "إرسال تجريبي" → استدعاء serverFn → عرض نتيجة فورية.
+- في وضع Manual: زر "فتح واتساب ويب" يفتح `wa.me` بالنص جاهز.
 
-- في `contacts.tsx`: الرسالة موجودة بالفعل. سنضيف:
-  - عند فشل صفوف معينة (phone فارغ): إظهار العدد المُتجاهل بسبب رقم غير صالح.
-  - تحويل toast إلى `toast.success(...)` مع وصف ثانوي (description) فيه التفاصيل.
-  - بعد الرفع: تحديث عداد "الإجمالي" فورًا.
+### 4) Storage Bucket للوسائط
+- إنشاء bucket `wa-media` عام مع RLS للقراءة العامة والكتابة للمستخدمين المسجلين.
 
-## 4) إضافة أمثلة حملات ناجحة
+### 5) دليل الاستخدام
+- تحديث `/guide` بقسم "كيف أُرسل أول رسالة تجريبية مجانية" خطوة بخطوة لكل مزود.
 
-في `campaigns.tsx`، داخل نافذة "حملة جديدة":
-- إضافة كرت "أمثلة جاهزة" يحتوي 3 أمثلة قابلة للنقر تملأ اسم الحملة:
-  1. **"حملة الرياض — يناير 2026"** — استهداف تجار العبايات في الرياض.
-  2. **"إعادة تفعيل العملاء الصامتين"** — لمن لم يرد منذ 30 يوم.
-  3. **"إطلاق مجموعة رمضان"** — حملة موسمية قبل رمضان بأسبوعين.
-- أسفل كل مثال شرح قصير (سطر واحد) للغرض ومتوسط معدل النجاح المتوقع.
-- إضافة شرح "ما هي الحملة؟" مختصر داخل النافذة + رابط لدليل الاستخدام `/guide`.
+### 6) محاكاة التشغيل (أنا أقوم بها قبل تسليمك)
+- تشغيل `stack_modern--invoke-server-function` لاستدعاء `/api/public/cron/dispatch` و `sendTestMessage` في وضع stub (بدون توكنات) للتحقق من عدم وجود أخطاء runtime.
+- قراءة `server-function-logs` للتأكد من سلامة المسار.
+- اختبار صفحة `/test-send` عبر معاينة المتصفح.
 
-## الملفات المعدّلة
+### 7) تعليمات التجربة الناجحة الأولى (سأرسلها لك بعد التطبيق)
+سأعطيك خطوات دقيقة جداً (5 دقائق):
+1. افتح `developers.facebook.com` → My Apps → Create App → Business → WhatsApp.
+2. انسخ: Phone Number ID + Temporary Access Token (24h) + WABA ID.
+3. أضِف رقمك الشخصي في قائمة "To" (verified recipients).
+4. الصق التوكنات في `/settings` → "Meta Cloud API".
+5. اذهب إلى `/test-send` → أدخل رقمك → اكتب "تجربة" → اضغط إرسال.
+6. ستصلك الرسالة على واتساب خلال ثوانٍ.
+7. ردّ "اهلا" → ستظهر في `/conversations` ويرد عليك AI تلقائياً.
 
-- `src/routes/_authenticated/route.tsx` — استبدال getUser بـ getSession في beforeLoad
-- `src/routes/auth.tsx` — تنظيف useEffect ومنع التوجيه المزدوج
-- `src/routes/_authenticated/settings.tsx` — upsert بـ onConflict + رسائل خطأ واضحة
-- `src/routes/_authenticated/contacts.tsx` — تحسين توست الرفع
-- `src/routes/_authenticated/campaigns.tsx` — أمثلة جاهزة + شرح
+## الملفات المتأثرة
+- `src/lib/whatsapp.server.ts` (تعديل)
+- `src/routes/_authenticated/settings.tsx` (تعديل)
+- `src/routes/_authenticated/test-send.tsx` (جديد)
+- `src/lib/test-send.functions.ts` (جديد)
+- `src/routes/_authenticated/guide.tsx` (تعديل)
+- `supabase/migrations/*` (storage bucket جديد)
+- `src/routes/_authenticated/route.tsx` (إضافة رابط جانبي "إرسال تجريبي")
+
+هل أتابع بهذا المخطط؟
