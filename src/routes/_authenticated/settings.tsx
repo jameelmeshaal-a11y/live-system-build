@@ -31,7 +31,16 @@ function SettingsPage() {
   const warm = useSettings("warm_up");
   const prompt = useSettings("system_prompt");
 
-  const [waForm, setWaForm] = useState({ phone_number_id: "", access_token: "", waba_id: "", verify_token: "", api_version: "v20.0" });
+  const [waForm, setWaForm] = useState({
+    provider: "meta" as "meta" | "unifonic" | "manual",
+    phone_number_id: "",
+    access_token: "",
+    waba_id: "",
+    verify_token: "",
+    api_version: "v20.0",
+    unifonic_app_sid: "",
+    unifonic_sender_id: "",
+  });
   const [schedForm, setSchedForm] = useState({ start_hour: 9, end_hour: 21, timezone: "Asia/Riyadh" });
   const [warmForm, setWarmForm] = useState({ daily_limit: 50, week: 1 });
   const [promptText, setPromptText] = useState("");
@@ -64,12 +73,55 @@ function SettingsPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>توكنات واتساب (Meta Cloud API)</CardTitle></CardHeader>
+        <CardHeader><CardTitle>مزوّد واتساب</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <div><Label>Phone Number ID</Label><Input className="ltr" value={waForm.phone_number_id} onChange={(e) => setWaForm({ ...waForm, phone_number_id: e.target.value })} /></div>
-          <div><Label>Access Token</Label><Input className="ltr" type="password" value={waForm.access_token} onChange={(e) => setWaForm({ ...waForm, access_token: e.target.value })} /></div>
-          <div><Label>WABA ID</Label><Input className="ltr" value={waForm.waba_id} onChange={(e) => setWaForm({ ...waForm, waba_id: e.target.value })} /></div>
-          <div><Label>Verify Token (للـ webhook)</Label><Input className="ltr" value={waForm.verify_token} onChange={(e) => setWaForm({ ...waForm, verify_token: e.target.value })} /></div>
+          <div>
+            <Label>اختر المزوّد</Label>
+            <div className="grid grid-cols-3 gap-2 mt-1">
+              {(["meta", "unifonic", "manual"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setWaForm({ ...waForm, provider: p })}
+                  className={`px-3 py-2 rounded-md border text-sm transition ${
+                    waForm.provider === p
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border hover:bg-muted"
+                  }`}
+                >
+                  {p === "meta" ? "Meta (رسمي)" : p === "unifonic" ? "Unifonic (سعودي)" : "يدوي (WAWCD)"}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              {waForm.provider === "meta" && "رسمي من Meta. يدعم رقم تجريبي مجاني (5 مستلمين)."}
+              {waForm.provider === "unifonic" && "مزود سعودي معتمد، Sandbox مجاني."}
+              {waForm.provider === "manual" && "يفتح wa.me في المتصفح. استخدمه مع امتداد WAWCD على Chrome."}
+            </p>
+          </div>
+
+          {waForm.provider === "meta" && (
+            <>
+              <div><Label>Phone Number ID</Label><Input className="ltr" value={waForm.phone_number_id} onChange={(e) => setWaForm({ ...waForm, phone_number_id: e.target.value })} /></div>
+              <div><Label>Access Token</Label><Input className="ltr" type="password" value={waForm.access_token} onChange={(e) => setWaForm({ ...waForm, access_token: e.target.value })} /></div>
+              <div><Label>WABA ID</Label><Input className="ltr" value={waForm.waba_id} onChange={(e) => setWaForm({ ...waForm, waba_id: e.target.value })} /></div>
+              <div><Label>Verify Token (للـ webhook)</Label><Input className="ltr" value={waForm.verify_token} onChange={(e) => setWaForm({ ...waForm, verify_token: e.target.value })} /></div>
+            </>
+          )}
+
+          {waForm.provider === "unifonic" && (
+            <>
+              <div><Label>App SID</Label><Input className="ltr" type="password" value={waForm.unifonic_app_sid} onChange={(e) => setWaForm({ ...waForm, unifonic_app_sid: e.target.value })} /></div>
+              <div><Label>Sender ID</Label><Input className="ltr" value={waForm.unifonic_sender_id} onChange={(e) => setWaForm({ ...waForm, unifonic_sender_id: e.target.value })} /></div>
+            </>
+          )}
+
+          {waForm.provider === "manual" && (
+            <p className="text-sm bg-muted/50 p-3 rounded-md">
+              لا توجد توكنات. الرسائل ستفتح في واتساب ويب يدوياً عبر صفحة "إرسال تجريبي".
+            </p>
+          )}
+
           <Button onClick={() => save("whatsapp_config", waForm)}>حفظ</Button>
         </CardContent>
       </Card>
