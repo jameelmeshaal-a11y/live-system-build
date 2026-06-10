@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedTestSendRouteImport } from './routes/_authenticated/test-send'
 import { Route as AuthenticatedTemplatesRouteImport } from './routes/_authenticated/templates'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedGuideRouteImport } from './routes/_authenticated/guide'
@@ -37,6 +38,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedTestSendRoute = AuthenticatedTestSendRouteImport.update({
+  id: '/test-send',
+  path: '/test-send',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedTemplatesRoute = AuthenticatedTemplatesRouteImport.update({
   id: '/templates',
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/guide': typeof AuthenticatedGuideRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
+  '/test-send': typeof AuthenticatedTestSendRoute
   '/conversations/$contactId': typeof AuthenticatedConversationsContactIdRoute
   '/api/webhook/whatsapp': typeof ApiWebhookWhatsappRoute
   '/api/public/cron/dispatch': typeof ApiPublicCronDispatchRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/guide': typeof AuthenticatedGuideRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/templates': typeof AuthenticatedTemplatesRoute
+  '/test-send': typeof AuthenticatedTestSendRoute
   '/conversations/$contactId': typeof AuthenticatedConversationsContactIdRoute
   '/api/webhook/whatsapp': typeof ApiWebhookWhatsappRoute
   '/api/public/cron/dispatch': typeof ApiPublicCronDispatchRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/_authenticated/guide': typeof AuthenticatedGuideRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/templates': typeof AuthenticatedTemplatesRoute
+  '/_authenticated/test-send': typeof AuthenticatedTestSendRoute
   '/_authenticated/conversations/$contactId': typeof AuthenticatedConversationsContactIdRoute
   '/api/webhook/whatsapp': typeof ApiWebhookWhatsappRoute
   '/api/public/cron/dispatch': typeof ApiPublicCronDispatchRoute
@@ -156,6 +165,7 @@ export interface FileRouteTypes {
     | '/guide'
     | '/settings'
     | '/templates'
+    | '/test-send'
     | '/conversations/$contactId'
     | '/api/webhook/whatsapp'
     | '/api/public/cron/dispatch'
@@ -171,6 +181,7 @@ export interface FileRouteTypes {
     | '/guide'
     | '/settings'
     | '/templates'
+    | '/test-send'
     | '/conversations/$contactId'
     | '/api/webhook/whatsapp'
     | '/api/public/cron/dispatch'
@@ -187,6 +198,7 @@ export interface FileRouteTypes {
     | '/_authenticated/guide'
     | '/_authenticated/settings'
     | '/_authenticated/templates'
+    | '/_authenticated/test-send'
     | '/_authenticated/conversations/$contactId'
     | '/api/webhook/whatsapp'
     | '/api/public/cron/dispatch'
@@ -222,6 +234,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/test-send': {
+      id: '/_authenticated/test-send'
+      path: '/test-send'
+      fullPath: '/test-send'
+      preLoaderRoute: typeof AuthenticatedTestSendRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/templates': {
       id: '/_authenticated/templates'
@@ -327,6 +346,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedGuideRoute: typeof AuthenticatedGuideRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTemplatesRoute: typeof AuthenticatedTemplatesRoute
+  AuthenticatedTestSendRoute: typeof AuthenticatedTestSendRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -338,6 +358,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedGuideRoute: AuthenticatedGuideRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTemplatesRoute: AuthenticatedTemplatesRoute,
+  AuthenticatedTestSendRoute: AuthenticatedTestSendRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
