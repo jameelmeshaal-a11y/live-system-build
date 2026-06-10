@@ -11,6 +11,7 @@ import {
   LogOut,
   Sparkles,
   BookOpen,
+  Send,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,7 @@ const NAV = [
   { to: "/conversations", label: "المحادثات", icon: MessageSquare },
   { to: "/templates", label: "القوالب", icon: FileText },
   { to: "/analytics", label: "التحليلات", icon: BarChart3 },
+  { to: "/test-send", label: "إرسال تجريبي", icon: Send },
   { to: "/settings", label: "الإعدادات", icon: SettingsIcon },
   { to: "/guide", label: "دليل الاستخدام", icon: BookOpen },
 ] as const;

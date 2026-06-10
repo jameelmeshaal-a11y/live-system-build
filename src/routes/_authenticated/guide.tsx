@@ -36,6 +36,24 @@ function GuidePage() {
         </Card>
 
         <Card>
+          <CardHeader><CardTitle>⚡ إرسال أول رسالة تجريبية (مجاناً، 5 دقائق)</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm leading-7">
+            <p>قبل ربط رقم رسمي مع Meta، تقدر تجرّب الإرسال بثلاث طرق:</p>
+            <p><strong>أ) Meta Cloud API — رقم تجريبي:</strong></p>
+            <ol className="list-decimal pr-6 space-y-1">
+              <li>افتح <code>developers.facebook.com</code> ← My Apps ← Create App ← Business.</li>
+              <li>أضف منتج WhatsApp ← انسخ Phone Number ID + Temporary Access Token (24h) + WABA ID.</li>
+              <li>أضف رقم جوّالك في قائمة "To" (verified recipients) — 5 أرقام مجاناً.</li>
+              <li>الإعدادات ← المزوّد <strong>Meta</strong> ← الصق التوكنات ← احفظ.</li>
+              <li>اذهب لـ <strong>إرسال تجريبي</strong> ← اكتب رقمك ← اضغط إرسال. تصل خلال ثواني.</li>
+            </ol>
+            <p><strong>ب) Unifonic (مزود سعودي):</strong> سجّل في <code>unifonic.com</code> ← Sandbox ← انسخ App SID ← الصقه في الإعدادات (مزوّد Unifonic).</p>
+            <p><strong>ج) WAWCD (يدوي):</strong> ثبّت امتداد WAWCD على Chrome ← اختر مزوّد <strong>يدوي</strong> في الإعدادات ← في صفحة إرسال تجريبي اضغط الزر ← يفتح واتساب ويب جاهز للإرسال.</p>
+            <p className="bg-muted/50 p-3 rounded">يدعم الإرسال التجريبي: <strong>نص، صورة، فيديو، مستند PDF</strong> (للوسائط ضع رابط HTTPS مباشر).</p>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader><CardTitle>2. الإعدادات قبل البدء</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm leading-7">
             <p><strong>توكنات واتساب:</strong> ضع <code>Phone Number ID</code>, <code>Access Token</code>, <code>WABA ID</code>, <code>Verify Token</code> من Meta.</p>
