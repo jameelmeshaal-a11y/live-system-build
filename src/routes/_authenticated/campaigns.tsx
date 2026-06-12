@@ -28,6 +28,9 @@ function CampaignsPage() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [linkAll, setLinkAll] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [confirmCamp, setConfirmCamp] = useState<any | null>(null);
+  const [starting, setStarting] = useState(false);
   const startFn = useServerFn(startCampaign);
   const pauseFn = useServerFn(pauseCampaign);
 
@@ -65,20 +68,33 @@ function CampaignsPage() {
     qc.invalidateQueries({ queryKey: ["campaigns"] });
   }
 
-  async function handleStart(id: string) {
+  async function runStart() {
+    if (!confirmCamp) return;
+    setStarting(true);
     try {
-      const res = await startFn({ data: { campaignId: id } });
-      toast.success(`تم جدولة ${res.queued} رسالة`);
+      const res = await startFn({ data: { campaignId: confirmCamp.id } });
+      if (res.ok) {
+        toast.success(`تم جدولة ${res.queued} رسالة بنجاح ✅`);
+      } else {
+        toast.error(res.error || "تعذّر تشغيل الحملة");
+      }
       qc.invalidateQueries({ queryKey: ["campaigns"] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشل");
+      toast.error(e instanceof Error ? e.message : "فشل تشغيل الحملة");
+    } finally {
+      setStarting(false);
+      setConfirmCamp(null);
     }
   }
 
   async function handlePause(id: string) {
-    await pauseFn({ data: { campaignId: id } });
-    toast.success("تم الإيقاف");
-    qc.invalidateQueries({ queryKey: ["campaigns"] });
+    try {
+      await pauseFn({ data: { campaignId: id } });
+      toast.success("تم إيقاف الحملة");
+      qc.invalidateQueries({ queryKey: ["campaigns"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر إيقاف الحملة");
+    }
   }
 
   return (
