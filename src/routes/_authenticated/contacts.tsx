@@ -153,6 +153,13 @@ function ContactsPage() {
               ))}
             </TableBody>
           </Table>
+          {contacts && contacts.length < total && (
+            <div className="flex justify-center mt-4">
+              <Button variant="outline" onClick={() => setPageSize(pageSize + 200)}>
+                تحميل المزيد ({total - contacts.length} متبقية)
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
