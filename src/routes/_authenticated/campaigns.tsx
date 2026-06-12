@@ -185,6 +185,30 @@ function CampaignsPage() {
           <Card><CardContent className="p-12 text-center text-muted-foreground">لا توجد حملات بعد</CardContent></Card>
         )}
       </div>
+
+      <AlertDialog open={!!confirmCamp} onOpenChange={(o) => !o && setConfirmCamp(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد تشغيل الحملة</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-1 text-right">
+              <div>سيتم جدولة الرسائل الأولى تلقائياً وفق إعدادات التسخين.</div>
+              {confirmCamp && (
+                <div className="mt-2 rounded-md bg-muted/40 p-3 text-sm space-y-1">
+                  <div><b>الاسم:</b> {confirmCamp.name}</div>
+                  <div><b>عدد جهات الاتصال:</b> {confirmCamp.total ?? 0}</div>
+                  <div><b>الحالة الحالية:</b> {confirmCamp.status}</div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={starting}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={runStart} disabled={starting}>
+              {starting ? "جاري التشغيل..." : "تشغيل الآن"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
