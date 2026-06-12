@@ -103,7 +103,9 @@ function ContactsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">جهات الاتصال</h1>
-          <p className="text-muted-foreground mt-1">إجمالي: {contacts?.length ?? 0}</p>
+          <p className="text-muted-foreground mt-1">
+            يُعرض {contacts?.length ?? 0} من إجمالي {total}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={downloadTemplate}>
