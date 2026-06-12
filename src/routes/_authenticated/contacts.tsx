@@ -23,20 +23,27 @@ function ContactsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const importFn = useServerFn(importContacts);
 
-  const { data: contacts } = useQuery({
-    queryKey: ["contacts", search],
+  const { data } = useQuery({
+    queryKey: ["contacts", search, pageSize],
     queryFn: async () => {
-      let q = supabase.from("contacts").select("*").order("created_at", { ascending: false }).limit(200);
+      let q = supabase
+        .from("contacts")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .limit(pageSize);
       if (search) {
         q = q.or(`phone.ilike.%${search}%,name.ilike.%${search}%,store_name.ilike.%${search}%,city.ilike.%${search}%`);
       }
-      const { data, error } = await q;
+      const { data, error, count } = await q;
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], total: count ?? 0 };
     },
   });
+  const contacts = data?.rows;
+  const total = data?.total ?? 0;
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
