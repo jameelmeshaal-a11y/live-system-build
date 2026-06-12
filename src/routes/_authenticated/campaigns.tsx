@@ -166,7 +166,7 @@ function CampaignsPage() {
               </div>
               <div className="flex gap-2">
                 {c.status !== "running" ? (
-                  <Button size="sm" onClick={() => handleStart(c.id)} disabled={!c.total}>
+                  <Button size="sm" onClick={() => setConfirmCamp(c)} disabled={!c.total}>
                     <Play className="w-4 h-4 ml-1" />تشغيل
                   </Button>
                 ) : (
