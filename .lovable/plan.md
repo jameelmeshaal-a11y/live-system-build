@@ -1,61 +1,59 @@
-## الهدف
-تمكين إرسال رسائل واتساب تجريبية مجانية (نص + صور + فيديو) قبل الاعتماد الرسمي من Meta، مع دعم 3 مزودين قابلين للتبديل من شاشة الإعدادات.
+# خطة تنفيذ أمر العمل الكامل — منصة نور AI
 
-## المزودون المدعومون
+## P0 — الأخطاء الحرجة (يجب قبل الإطلاق)
 
-| المزود | مجاني؟ | API حقيقي؟ | الوسائط | ملاحظات |
-|---|---|---|---|---|
-| **Meta Cloud API – Test Number** | نعم (5 مستلمين) | نعم رسمي | نص/صور/فيديو/PDF | الأنسب والأرسخ |
-| **Unifonic Sandbox (سعودي)** | نعم (رصيد تجريبي) | نعم REST | نص + قوالب | مزود سعودي معتمد |
-| **WAWCD (إضافة بديلة)** | نعم محدود | امتداد كروم – لا API عام | يدوي عبر المتصفح | يُضاف كزر "نسخ النص + فتح واتساب ويب" فقط، لأنه ليس API |
+### 1. إصلاح RLS على جدول `settings` (خطأ #2)
+- مشكلة: حفظ الإعدادات يُرجع 403 → ربط واتساب مستحيل.
+- الحل: migration جديدة تُفعّل RLS وتضيف سياسة كتابة:
+  - `SELECT` للجميع المصادقين
+  - `INSERT/UPDATE/DELETE` للمدير فقط (`has_role(auth.uid(), 'admin')`)
+  - منح `GRANT SELECT, INSERT, UPDATE, DELETE ... TO authenticated`
+- التحقق: حفظ من `/settings` يعود 200.
 
-> ملاحظة: WAWCD ليس له endpoint عام. سنضيفه كـ "وضع يدوي" (Click-to-Chat) — يفتح `https://wa.me/<phone>?text=<message>` ويمكن استخدامه مع امتداد WAWCD في متصفح المستخدم. هذا أقصى تكامل ممكن تقنياً معه.
+### 2. إصلاح `HEAD → 503` في إحصائيات لوحة التحكم (خطأ #1)
+- مشكلة: استدعاءات `count: 'exact', head: true` تُرجع 503 في Cloudflare/Worker.
+- الحل في `src/routes/_authenticated/dashboard.tsx` (وأي ملف يستخدم نفس النمط): استبدال
+  - `select('*', { count: 'exact', head: true })` بـ
+  - `select('id', { count: 'exact' }).limit(1)` — يبقى GET ويعيد العدد دون تحميل بيانات.
+- التحقق: الأرقام تظهر صحيحة في الداشبورد.
 
-## الخطوات
+### 3. إصلاح زر "تشغيل الحملة" (خطأ #3 — Seroval Error)
+- مشكلة: server function لتشغيل الحملة ترمي خطأ غير قابل للتسلسل، فيتحول إلى Seroval Error صامت.
+- الحل في `src/lib/campaigns.functions.ts`:
+  - تغليف الـ handler بـ `try/catch` يُعيد `{ ok: false, error: string }` بدل throw raw.
+  - إصلاح أي `throw new Error(obj)` → `throw new Error(String(obj))`.
+- الحل في `src/routes/_authenticated/campaigns.tsx`:
+  - إضافة `AlertDialog` تأكيد قبل التشغيل يعرض: اسم الحملة، عدد جهات الاتصال، اسم القالب.
+  - عرض `toast.error(result.error)` عند الفشل، `toast.success` عند النجاح.
+  - `qc.invalidateQueries(['campaigns'])` بعد التشغيل.
 
-### 1) امتداد طبقة الإرسال (`src/lib/whatsapp.server.ts`)
-- إضافة `provider` field في `whatsapp_config` (قيم: `meta` | `unifonic` | `manual`).
-- إضافة `sendWhatsAppMedia(phone, type, mediaUrl, caption)` يدعم `image|video|document`.
-- موجّه `dispatch(provider, ...)` يختار المزود بناءً على الإعدادات.
-- `sendViaUnifonic()` — استدعاء `https://el.cloud.unifonic.com/rest/Messages/messages` بـ `AppSid`.
+## P1 — الأسبوع الأول
 
-### 2) شاشة الإعدادات (`settings.tsx`)
-- محدّد مزود (Radio): Meta / Unifonic / Manual (WAWCD).
-- حقول ديناميكية لكل مزود (Meta: phone_number_id+token, Unifonic: AppSid+SenderID).
+### 4. تعارض عدد جهات الاتصال 331 vs 200 (خطأ #4)
+- في `src/routes/_authenticated/contacts.tsx`:
+  - استخدام `count: 'exact'` للحصول على الإجمالي الحقيقي من DB.
+  - عرض `<عدد محمّل> من <إجمالي>` في الواجهة.
+  - إضافة pagination بسيطة (زر "تحميل المزيد" بحجم صفحة 200).
 
-### 3) صفحة اختبار جديدة `/test-send`
-- حقل رقم هاتف + اختيار نوع (نص/صورة/فيديو/مستند) + رفع ملف أو URL + نص.
-- زر "إرسال تجريبي" → استدعاء serverFn → عرض نتيجة فورية.
-- في وضع Manual: زر "فتح واتساب ويب" يفتح `wa.me` بالنص جاهز.
+### 5. مسار `/login` يُرجع 404 (خطأ #5)
+- إنشاء `src/routes/login.tsx` مع `beforeLoad: () => redirect({ to: '/auth' })`.
 
-### 4) Storage Bucket للوسائط
-- إنشاء bucket `wa-media` عام مع RLS للقراءة العامة والكتابة للمستخدمين المسجلين.
+## P2 — تحسينات UX
 
-### 5) دليل الاستخدام
-- تحديث `/guide` بقسم "كيف أُرسل أول رسالة تجريبية مجانية" خطوة بخطوة لكل مزود.
-
-### 6) محاكاة التشغيل (أنا أقوم بها قبل تسليمك)
-- تشغيل `stack_modern--invoke-server-function` لاستدعاء `/api/public/cron/dispatch` و `sendTestMessage` في وضع stub (بدون توكنات) للتحقق من عدم وجود أخطاء runtime.
-- قراءة `server-function-logs` للتأكد من سلامة المسار.
-- اختبار صفحة `/test-send` عبر معاينة المتصفح.
-
-### 7) تعليمات التجربة الناجحة الأولى (سأرسلها لك بعد التطبيق)
-سأعطيك خطوات دقيقة جداً (5 دقائق):
-1. افتح `developers.facebook.com` → My Apps → Create App → Business → WhatsApp.
-2. انسخ: Phone Number ID + Temporary Access Token (24h) + WABA ID.
-3. أضِف رقمك الشخصي في قائمة "To" (verified recipients).
-4. الصق التوكنات في `/settings` → "Meta Cloud API".
-5. اذهب إلى `/test-send` → أدخل رقمك → اكتب "تجربة" → اضغط إرسال.
-6. ستصلك الرسالة على واتساب خلال ثوانٍ.
-7. ردّ "اهلا" → ستظهر في `/conversations` ويرد عليك AI تلقائياً.
+### 6. Toast notifications لجميع حالات الخطأ
+- مراجعة `settings.tsx`, `campaigns.tsx`, `contacts.tsx`, `test-send.tsx` للتأكد أن كل استدعاء async يعرض toast واضح عند الفشل.
 
 ## الملفات المتأثرة
-- `src/lib/whatsapp.server.ts` (تعديل)
-- `src/routes/_authenticated/settings.tsx` (تعديل)
-- `src/routes/_authenticated/test-send.tsx` (جديد)
-- `src/lib/test-send.functions.ts` (جديد)
-- `src/routes/_authenticated/guide.tsx` (تعديل)
-- `supabase/migrations/*` (storage bucket جديد)
-- `src/routes/_authenticated/route.tsx` (إضافة رابط جانبي "إرسال تجريبي")
+- `supabase/migrations/*` (جديد: RLS سياسة settings)
+- `src/routes/_authenticated/dashboard.tsx` (تعديل count queries)
+- `src/lib/campaigns.functions.ts` (try/catch + serialization)
+- `src/routes/_authenticated/campaigns.tsx` (AlertDialog + toasts)
+- `src/routes/_authenticated/contacts.tsx` (إجمالي حقيقي + pagination)
+- `src/routes/login.tsx` (جديد: redirect)
 
-هل أتابع بهذا المخطط؟
+## التحقق النهائي
+1. تشغيل `stack_modern--invoke-server-function` لاختبار `launchCampaign`.
+2. قراءة `server-function-logs` للتحقق من عدم وجود Seroval errors.
+3. فتح المعاينة واختبار: حفظ إعدادات → تشغيل حملة وهمية → فحص أرقام الداشبورد.
+
+هل أتابع التنفيذ؟
