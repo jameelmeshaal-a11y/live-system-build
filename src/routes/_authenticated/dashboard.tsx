@@ -30,10 +30,10 @@ function Dashboard() {
     queryKey: ["dashboard-stats"],
     queryFn: async () => {
       const [contacts, sent, replied, converted] = await Promise.all([
-        supabase.from("contacts").select("*", { count: "exact", head: true }),
-        supabase.from("contacts").select("*", { count: "exact", head: true }).in("status", ["sent", "replied", "interested", "converted"]),
-        supabase.from("contacts").select("*", { count: "exact", head: true }).in("status", ["replied", "interested", "converted"]),
-        supabase.from("contacts").select("*", { count: "exact", head: true }).eq("status", "converted"),
+        supabase.from("contacts").select("id", { count: "exact" }).limit(1),
+        supabase.from("contacts").select("id", { count: "exact" }).in("status", ["sent", "replied", "interested", "converted"]).limit(1),
+        supabase.from("contacts").select("id", { count: "exact" }).in("status", ["replied", "interested", "converted"]).limit(1),
+        supabase.from("contacts").select("id", { count: "exact" }).eq("status", "converted").limit(1),
       ]);
       return {
         total: contacts.count ?? 0,
