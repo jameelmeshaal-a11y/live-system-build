@@ -23,20 +23,27 @@ function ContactsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [pageSize, setPageSize] = useState(200);
   const importFn = useServerFn(importContacts);
 
-  const { data: contacts } = useQuery({
-    queryKey: ["contacts", search],
+  const { data } = useQuery({
+    queryKey: ["contacts", search, pageSize],
     queryFn: async () => {
-      let q = supabase.from("contacts").select("*").order("created_at", { ascending: false }).limit(200);
+      let q = supabase
+        .from("contacts")
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .limit(pageSize);
       if (search) {
         q = q.or(`phone.ilike.%${search}%,name.ilike.%${search}%,store_name.ilike.%${search}%,city.ilike.%${search}%`);
       }
-      const { data, error } = await q;
+      const { data, error, count } = await q;
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], total: count ?? 0 };
     },
   });
+  const contacts = data?.rows;
+  const total = data?.total ?? 0;
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -96,7 +103,9 @@ function ContactsPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">جهات الاتصال</h1>
-          <p className="text-muted-foreground mt-1">إجمالي: {contacts?.length ?? 0}</p>
+          <p className="text-muted-foreground mt-1">
+            يُعرض {contacts?.length ?? 0} من إجمالي {total}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={downloadTemplate}>
@@ -144,6 +153,13 @@ function ContactsPage() {
               ))}
             </TableBody>
           </Table>
+          {contacts && contacts.length < total && (
+            <div className="flex justify-center mt-4">
+              <Button variant="outline" onClick={() => setPageSize(pageSize + 200)}>
+                تحميل المزيد ({total - contacts.length} متبقية)
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

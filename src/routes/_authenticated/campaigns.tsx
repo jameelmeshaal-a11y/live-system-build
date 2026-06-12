@@ -7,6 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -24,6 +28,9 @@ function CampaignsPage() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [linkAll, setLinkAll] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [confirmCamp, setConfirmCamp] = useState<any | null>(null);
+  const [starting, setStarting] = useState(false);
   const startFn = useServerFn(startCampaign);
   const pauseFn = useServerFn(pauseCampaign);
 
@@ -61,20 +68,33 @@ function CampaignsPage() {
     qc.invalidateQueries({ queryKey: ["campaigns"] });
   }
 
-  async function handleStart(id: string) {
+  async function runStart() {
+    if (!confirmCamp) return;
+    setStarting(true);
     try {
-      const res = await startFn({ data: { campaignId: id } });
-      toast.success(`تم جدولة ${res.queued} رسالة`);
+      const res = await startFn({ data: { campaignId: confirmCamp.id } });
+      if (res.ok) {
+        toast.success(`تم جدولة ${res.queued} رسالة بنجاح ✅`);
+      } else {
+        toast.error(res.error || "تعذّر تشغيل الحملة");
+      }
       qc.invalidateQueries({ queryKey: ["campaigns"] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "فشل");
+      toast.error(e instanceof Error ? e.message : "فشل تشغيل الحملة");
+    } finally {
+      setStarting(false);
+      setConfirmCamp(null);
     }
   }
 
   async function handlePause(id: string) {
-    await pauseFn({ data: { campaignId: id } });
-    toast.success("تم الإيقاف");
-    qc.invalidateQueries({ queryKey: ["campaigns"] });
+    try {
+      await pauseFn({ data: { campaignId: id } });
+      toast.success("تم إيقاف الحملة");
+      qc.invalidateQueries({ queryKey: ["campaigns"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تعذّر إيقاف الحملة");
+    }
   }
 
   return (
@@ -146,7 +166,7 @@ function CampaignsPage() {
               </div>
               <div className="flex gap-2">
                 {c.status !== "running" ? (
-                  <Button size="sm" onClick={() => handleStart(c.id)} disabled={!c.total}>
+                  <Button size="sm" onClick={() => setConfirmCamp(c)} disabled={!c.total}>
                     <Play className="w-4 h-4 ml-1" />تشغيل
                   </Button>
                 ) : (
@@ -165,6 +185,30 @@ function CampaignsPage() {
           <Card><CardContent className="p-12 text-center text-muted-foreground">لا توجد حملات بعد</CardContent></Card>
         )}
       </div>
+
+      <AlertDialog open={!!confirmCamp} onOpenChange={(o) => !o && setConfirmCamp(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>تأكيد تشغيل الحملة</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-1 text-right">
+              <div>سيتم جدولة الرسائل الأولى تلقائياً وفق إعدادات التسخين.</div>
+              {confirmCamp && (
+                <div className="mt-2 rounded-md bg-muted/40 p-3 text-sm space-y-1">
+                  <div><b>الاسم:</b> {confirmCamp.name}</div>
+                  <div><b>عدد جهات الاتصال:</b> {confirmCamp.total ?? 0}</div>
+                  <div><b>الحالة الحالية:</b> {confirmCamp.status}</div>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={starting}>إلغاء</AlertDialogCancel>
+            <AlertDialogAction onClick={runStart} disabled={starting}>
+              {starting ? "جاري التشغيل..." : "تشغيل الآن"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
